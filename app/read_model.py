@@ -1,5 +1,7 @@
+import json
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
 from app.config import INDEX_DB
 from app.models import Meeting
@@ -51,3 +53,30 @@ def get_meeting(meeting_id: str) -> Meeting | None:
     with _connect() as con:
         row = con.execute("SELECT * FROM meetings WHERE id = ?", (meeting_id,)).fetchone()
     return _row_to_meeting(row) if row else None
+
+
+def get_speaker_labels(meeting_id: str) -> list[dict]:
+    """Current speaker_num -> label mappings for a meeting (index.db)."""
+    if not INDEX_DB.exists():
+        return []
+    with _connect() as con:
+        rows = con.execute(
+            "SELECT speaker_num, label FROM speaker_labels WHERE meeting_id = ? ORDER BY speaker_num",
+            (meeting_id,),
+        ).fetchall()
+    return [{"speaker_num": r["speaker_num"], "label": r["label"]} for r in rows]
+
+
+def get_speakers(meeting_id: str) -> list[str]:
+    """Distinct speaker ids present in the transcript, to guide labeling. Reads
+    transcript.json via storage_path (resolves now that data is mounted at the host
+    path); returns [] if unreadable."""
+    meeting = get_meeting(meeting_id)
+    if not meeting or not meeting.storage_path:
+        return []
+    path = Path(meeting.storage_path) / "transcript.json"
+    try:
+        segments = json.loads(path.read_text())["segments"]
+    except (OSError, json.JSONDecodeError, KeyError):
+        return []
+    return sorted({s["speaker_id"] for s in segments if s.get("speaker_id")})

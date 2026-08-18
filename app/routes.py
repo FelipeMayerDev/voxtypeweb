@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 import markdown as _md
 
 from app.cli import VoxtypeCliError
 from app.cli import export as cli_export
+from app.cli import label as cli_label
 from app.cli import read_markdown as cli_read_markdown
 from app.config_service import ConfigError, read_config, write_config
 from app.health import get_health
-from app.read_model import get_meeting, list_meetings
+from app.read_model import get_meeting, get_speaker_labels, get_speakers, list_meetings
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -44,8 +45,7 @@ def index(request: Request):
     )
 
 
-@router.get("/meetings/{meeting_id}", response_class=HTMLResponse)
-def meeting_detail(request: Request, meeting_id: str):
+def _render_meeting(request: Request, meeting_id: str, label_error: str | None = None):
     meeting = _get_meeting_or_404(meeting_id)
     return templates.TemplateResponse(
         request,
@@ -54,8 +54,26 @@ def meeting_detail(request: Request, meeting_id: str):
             "meeting": meeting,
             "health": get_health(),
             "transcript_html": _transcript_html(meeting_id),
+            "speakers": get_speakers(meeting_id),
+            "labels": get_speaker_labels(meeting_id),
+            "label_error": label_error,
         },
     )
+
+
+@router.get("/meetings/{meeting_id}", response_class=HTMLResponse)
+def meeting_detail(request: Request, meeting_id: str):
+    return _render_meeting(request, meeting_id)
+
+
+@router.post("/meetings/{meeting_id}", response_class=HTMLResponse)
+def meeting_label(request: Request, meeting_id: str, speaker_id: str = Form(...), label: str = Form(...)):
+    _get_meeting_or_404(meeting_id)
+    try:
+        cli_label(meeting_id, speaker_id.strip(), label.strip())
+    except VoxtypeCliError as exc:
+        return _render_meeting(request, meeting_id, label_error=str(exc))
+    return RedirectResponse(url=f"/meetings/{meeting_id}", status_code=303)
 
 
 @router.get("/meetings/{meeting_id}/transcript", response_class=HTMLResponse)

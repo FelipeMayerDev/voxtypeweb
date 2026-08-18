@@ -18,7 +18,8 @@ services:
     volumes:
       - /usr/bin/voxtype:/usr/bin/voxtype:ro
       - /usr/lib/voxtype:/usr/lib/voxtype:ro
-      - ${HOME}/.local/share/voxtype:${HOME}/.local/share/voxtype:ro
+      # rw: `voxtype meeting label` writes the speaker_labels table in index.db
+      - ${HOME}/.local/share/voxtype:${HOME}/.local/share/voxtype:rw
       - ${HOME}/.config/voxtype:${HOME}/.config/voxtype:rw
       - ${XDG_RUNTIME_DIR}/voxtype:/run/voxtype:ro
     healthcheck:
