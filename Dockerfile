@@ -2,7 +2,9 @@
 # needs a matching-or-newer glibc than what Debian/Ubuntu base images ship.
 FROM fedora:44
 
-RUN dnf install -y python3 python3-pip && dnf clean all
+# python + runtime libs the bind-mounted voxtype binary links against
+# (libasound.so.2 = alsa-lib, libstdc++.so.6 = libstdc++); glibc/libgcc are in the base.
+RUN dnf install -y python3 python3-pip alsa-lib libstdc++ && dnf clean all
 
 RUN useradd --uid 1000 --create-home appuser
 

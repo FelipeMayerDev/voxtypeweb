@@ -9,6 +9,10 @@ services:
       VOXTYPE_CONFIG_PATH: /config/voxtype/config.toml
       VOXTYPE_STATE_DIR: /run/voxtype
       VOXTYPE_BIN: /usr/bin/voxtype
+      # voxtype CLI (export/label/delete) locates data/config via XDG, not the VOXTYPE_* vars:
+      # point them at the mounted trees so `voxtype meeting ...` finds the meetings and config.
+      XDG_DATA_HOME: /data
+      XDG_CONFIG_HOME: /config
     volumes:
       - /usr/bin/voxtype:/usr/bin/voxtype:ro
       - /usr/lib/voxtype:/usr/lib/voxtype:ro

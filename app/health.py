@@ -1,5 +1,3 @@
-import os
-
 from app.config import STATE_DIR, VOXTYPE_BIN
 from app.models import DaemonState, Health
 
@@ -13,20 +11,17 @@ def get_daemon_state() -> DaemonState:
     meeting_state = meeting_state_file.read_text().strip() if meeting_state_file.exists() else None
 
     pid: int | None = None
-    running = False
     if pid_file.exists():
         try:
             pid = int(pid_file.read_text().strip())
         except ValueError:
             pid = None
-        if pid is not None:
-            try:
-                os.kill(pid, 0)
-                running = True
-            except ProcessLookupError:
-                running = False
-            except PermissionError:
-                running = True
+
+    # Liveness from the published state file, not os.kill(pid): the daemon runs on the
+    # host and this process may be in a container (ADR 0002) where host PIDs are invisible.
+    # voxtype's own status integration is file-based; a live daemon publishes one of these.
+    # ponytail: trusts the state file; a crash leaving a stale file reads as running.
+    running = state in ("idle", "recording", "transcribing")
 
     return DaemonState(state=state, meeting_state=meeting_state, pid=pid, running=running)
 
