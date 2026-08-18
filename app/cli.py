@@ -22,11 +22,3 @@ def _run(*args: str) -> subprocess.CompletedProcess:
 
 def export(meeting_id: str, fmt: str) -> bytes:
     return _run("meeting", "export", meeting_id, "-f", fmt).stdout
-
-
-def label(meeting_id: str, speaker_id: str, label: str) -> None:
-    _run("meeting", "label", meeting_id, speaker_id, label)
-
-
-def delete(meeting_id: str) -> None:
-    _run("meeting", "delete", meeting_id, "-f")

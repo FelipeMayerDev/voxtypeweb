@@ -42,9 +42,6 @@
             <a href="/meetings/{{ m.id }}/export?format=text">Text</a>
             <a href="/meetings/{{ m.id }}/export?format=markdown">Markdown</a>
             <a href="/meetings/{{ m.id }}/export?format=json">JSON</a>
-            <form method="post" action="/meetings/{{ m.id }}/delete" onsubmit="return confirm('Delete this Meeting?')">
-              <button class="link-button danger" type="submit">Delete</button>
-            </form>
           </div>
         </td>
       </tr>

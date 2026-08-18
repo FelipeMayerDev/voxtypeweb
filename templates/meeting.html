@@ -34,13 +34,4 @@
     {% include "_transcript.html" %}
   {% endif %}
 </section>
-
-<section class="label-panel" aria-labelledby="label-heading">
-  <h2 id="label-heading">Add Speaker Label</h2>
-  <form class="label-form" method="post" action="/meetings/{{ meeting.id }}/label">
-    <label>Speaker ID <input name="speaker_id" required placeholder="SPEAKER_00"></label>
-    <label>Label <input name="label" required placeholder="Alice"></label>
-    <button type="submit">Save label</button>
-  </form>
-</section>
 {% endblock %}

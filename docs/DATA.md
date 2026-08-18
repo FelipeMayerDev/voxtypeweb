@@ -75,15 +75,15 @@ Timestamps here are ISO-8601 (db has unix seconds) — normalize both to datetim
 ```
 `source` ∈ `microphone` | `loopback`. Segments may omit `speaker_id`, `confidence`.
 
-## CLI mutation surface (ADR 0001: mutate via CLI only)
+## CLI surface
 
 ```
 voxtype meeting export <ID|latest> -f text|markdown|json [--timestamps --speakers --metadata]  # stdout
-voxtype meeting label  <ID|latest> <SPEAKER_ID> <LABEL>
-voxtype meeting delete <ID> -f
 ```
-Reads (list/show/live) NEVER shell out — read index.db + json directly. NEVER write
-index.db or the json files.
+Meetings are **view-only** on the web (ADR 0002): no label/delete — those mutate
+meeting data / `index.db`, which is bind-mounted read-only. `export` is read-only
+(stdout) and is the only CLI call. Reads (list/show/live) NEVER shell out — read
+index.db + json directly, and NEVER write index.db or the json files (ADR 0001).
 
 ## HTTP + template contract (both workers follow exactly)
 
@@ -108,8 +108,6 @@ entrypoint `app.main:app`.
 | GET | `/` | `index.html` | ctx: `meetings: list[Meeting]`, `health: Health` |
 | GET | `/meetings/{id}` | `meeting.html` | ctx: `meeting: MeetingDetail`, `health: Health` |
 | GET | `/meetings/{id}/transcript` | `_transcript.html` | HTMX poll target; ctx: `meeting: MeetingDetail` |
-| POST | `/meetings/{id}/label` | redirect to detail | form: `speaker_id`, `label` -> CLI label |
-| POST | `/meetings/{id}/delete` | redirect to `/` | CLI delete -f |
 | GET | `/meetings/{id}/export` | file download | query `format=text\|markdown\|json`; CLI export |
 | GET | `/config` | `config.html` | ctx: `content: str`, `error: str\|None`, `saved: bool` |
 | POST | `/config` | `config.html` | form: `content`; validate `tomlkit.parse`, write raw text (comments preserved) |
@@ -127,8 +125,8 @@ entrypoint `app.main:app`.
 ### Templates (`templates/`)
 
 - `base.html`: layout; `<head>` loads `/static/style.css` + `/static/htmx.min.js`; nav (Home `/`, Config `/config`); renders `_health.html` banner from `health`; `{% block content %}`.
-- `index.html` extends base: table of `meetings` — title (or "(untitled)"), started_at, duration, status badge, chunk_count, model, actions (view, export text/md/json links, delete POST form).
-- `meeting.html` extends base: metadata header + `_transcript.html`. If `meeting.status in ("active","paused")`, wrap transcript in a container with `hx-get="/meetings/{id}/transcript" hx-trigger="every 5s" hx-swap="innerHTML"`. Speaker-label form (POST `/meetings/{id}/label`, fields `speaker_id`, `label`).
+- `index.html` extends base: table of `meetings` — title (or "(untitled)"), started_at, duration, status badge, chunk_count, model, actions (view, export text/md/json links). Meetings are view-only: no delete.
+- `meeting.html` extends base: metadata header + `_transcript.html`. If `meeting.status in ("active","paused")`, wrap transcript in a container with `hx-get="/meetings/{id}/transcript" hx-trigger="every 5s" hx-swap="innerHTML"`. Speaker labels from `meeting.labels` are shown in the transcript, but are not editable on the web (ADR 0002).
 - `_transcript.html`: renders `meeting.segments` — timestamp `mm:ss` from `start_ms`, speaker (label for `speaker_id` if present else raw `speaker_id`), source icon (mic/loopback), text.
 - `config.html` extends base: `<form method=post action="/config">` with big monospace `<textarea name="content">{{ content }}</textarea>` + Save; show `error` if invalid TOML, success if `saved`.
 - `_health.html`: banner from `health` — green if `ok`, shows daemon `state`; warn/red if binary missing.
