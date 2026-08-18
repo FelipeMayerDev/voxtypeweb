@@ -1,0 +1,22 @@
+services:
+  voxtypeweb:
+    build: .
+    user: "1000:1000"
+    ports:
+      - "8000:8000"
+    environment:
+      VOXTYPE_DATA_DIR: /data/voxtype
+      VOXTYPE_CONFIG_PATH: /config/voxtype/config.toml
+      VOXTYPE_STATE_DIR: /run/voxtype
+      VOXTYPE_BIN: /usr/bin/voxtype
+    volumes:
+      - /usr/bin/voxtype:/usr/bin/voxtype:ro
+      - /usr/lib/voxtype:/usr/lib/voxtype:ro
+      - ${HOME}/.local/share/voxtype:/data/voxtype:ro
+      - ${HOME}/.config/voxtype:/config/voxtype:rw
+      - ${XDG_RUNTIME_DIR}/voxtype:/run/voxtype:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

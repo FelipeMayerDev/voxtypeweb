@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Meetings · Voxtype{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Meeting archive</p>
+    <h1>Meetings</h1>
+  </div>
+  <p>{{ meetings|length }} total</p>
+</div>
+
+{% if meetings %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Title</th>
+        <th scope="col">Started</th>
+        <th scope="col">Duration</th>
+        <th scope="col">Status</th>
+        <th scope="col">Chunks</th>
+        <th scope="col">Engine</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in meetings %}
+      <tr>
+        <td><a class="meeting-title" href="/meetings/{{ m.id }}">{{ m.title or "(untitled)" }}</a></td>
+        <td><time datetime="{{ m.started_at.isoformat() }}">{{ m.started_at.strftime("%Y-%m-%d %H:%M") }}</time></td>
+        <td>
+          {% if m.duration_secs is not none %}
+            {% if m.duration_secs >= 3600 %}{{ "%d:%02d:%02d"|format(m.duration_secs // 3600, (m.duration_secs % 3600) // 60, m.duration_secs % 60) }}{% else %}{{ "%d:%02d"|format(m.duration_secs // 60, m.duration_secs % 60) }}{% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td><span class="status status-{{ m.status }}">{{ m.status }}</span></td>
+        <td>{{ m.chunk_count }}</td>
+        <td>{{ m.model or "—" }}</td>
+        <td>
+          <div class="actions">
+            <a href="/meetings/{{ m.id }}">View</a>
+            <a href="/meetings/{{ m.id }}/export?format=text">Text</a>
+            <a href="/meetings/{{ m.id }}/export?format=markdown">Markdown</a>
+            <a href="/meetings/{{ m.id }}/export?format=json">JSON</a>
+            <form method="post" action="/meetings/{{ m.id }}/delete" onsubmit="return confirm('Delete this Meeting?')">
+              <button class="link-button danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="empty-state">No Meetings found.</p>
+{% endif %}
+{% endblock %}

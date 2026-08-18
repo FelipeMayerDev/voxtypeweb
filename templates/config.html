@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Config · Voxtype{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Voxtype</p>
+    <h1>Config</h1>
+  </div>
+</div>
+
+{% if error %}<p class="notice notice-error" role="alert"><strong>Invalid TOML:</strong> {{ error }}</p>{% endif %}
+{% if saved %}<p class="notice notice-success" role="status">Config saved.</p>{% endif %}
+
+<form class="config-form" method="post" action="/config">
+  <label for="config-content">TOML content</label>
+  <p class="help" id="config-help">Edit the raw Config carefully. Existing comments are preserved.</p>
+  <textarea id="config-content" name="content" aria-describedby="config-help" spellcheck="false">{{ content }}</textarea>
+  <button type="submit">Save Config</button>
+</form>
+{% endblock %}

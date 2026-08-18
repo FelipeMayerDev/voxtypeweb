@@ -1,0 +1,11 @@
+{% if health is defined %}
+<div class="health {% if not health.binary_present %}health-error{% elif health.ok %}health-ok{% else %}health-warning{% endif %}" role="status">
+  <div class="container">
+    {% if not health.binary_present %}
+      <strong>Voxtype unavailable.</strong> Binary not found at {{ health.binary_path }}.
+    {% else %}
+      <strong>Daemon:</strong> {{ health.daemon.state }}{% if not health.daemon.running %} (not running){% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endif %}

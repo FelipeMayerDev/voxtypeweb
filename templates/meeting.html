@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ meeting.title or "(untitled)" }} · Voxtype{% endblock %}
+{% block content %}
+<p class="back-link"><a href="/">← All Meetings</a></p>
+<header class="meeting-header">
+  <div>
+    <p class="eyebrow">Meeting</p>
+    <h1>{{ meeting.title or "(untitled)" }}</h1>
+  </div>
+  <span class="status status-{{ meeting.status }}">{{ meeting.status }}</span>
+</header>
+
+<dl class="metadata">
+  <div><dt>Started</dt><dd><time datetime="{{ meeting.started_at.isoformat() }}">{{ meeting.started_at.strftime("%Y-%m-%d %H:%M") }}</time></dd></div>
+  <div><dt>Ended</dt><dd>{% if meeting.ended_at %}<time datetime="{{ meeting.ended_at.isoformat() }}">{{ meeting.ended_at.strftime("%Y-%m-%d %H:%M") }}</time>{% else %}—{% endif %}</dd></div>
+  <div><dt>Duration</dt><dd>{% if meeting.duration_secs is not none %}{% if meeting.duration_secs >= 3600 %}{{ "%d:%02d:%02d"|format(meeting.duration_secs // 3600, (meeting.duration_secs % 3600) // 60, meeting.duration_secs % 60) }}{% else %}{{ "%d:%02d"|format(meeting.duration_secs // 60, meeting.duration_secs % 60) }}{% endif %}{% else %}—{% endif %}</dd></div>
+  <div><dt>Engine</dt><dd>{{ meeting.model or "—" }}</dd></div>
+  <div><dt>Chunks</dt><dd>{{ meeting.chunk_count }}</dd></div>
+</dl>
+
+<section aria-labelledby="transcript-heading">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Transcript</p>
+      <h2 id="transcript-heading">Segments</h2>
+    </div>
+    {% if meeting.status in ("active", "paused") %}<p class="live-indicator">Live View · Chunk updates every 5 seconds</p>{% endif %}
+  </div>
+  {% if meeting.status in ("active", "paused") %}
+  <div hx-get="/meetings/{{ meeting.id }}/transcript" hx-trigger="every 5s" hx-swap="innerHTML">
+    {% include "_transcript.html" %}
+  </div>
+  {% else %}
+    {% include "_transcript.html" %}
+  {% endif %}
+</section>
+
+<section class="label-panel" aria-labelledby="label-heading">
+  <h2 id="label-heading">Add Speaker Label</h2>
+  <form class="label-form" method="post" action="/meetings/{{ meeting.id }}/label">
+    <label>Speaker ID <input name="speaker_id" required placeholder="SPEAKER_00"></label>
+    <label>Label <input name="label" required placeholder="Alice"></label>
+    <button type="submit">Save label</button>
+  </form>
+</section>
+{% endblock %}
