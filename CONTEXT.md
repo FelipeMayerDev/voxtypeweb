@@ -43,8 +43,11 @@ A coleção ordenada de Segments de uma Meeting. Exportável em `text`,
 _Avoid_: transcrição, texto.
 
 **Speaker Label**:
-Nome legível atribuído a um ID de speaker auto-gerado (ex.: `SPEAKER_00` -> "Alice"),
-via `voxtype meeting label`. Persistido em `speaker_labels`.
+Nome legível atribuído a um ID de speaker. No modelo do voxtype vem de
+`voxtype meeting label` (só speakers diarizados `SPEAKER_NN`, em `speaker_labels`).
+Como este build atribui speakers por canal (`You`/`Remote`, `source="both"`), a web
+aplica um **alias de exibição próprio** (speaker_id -> nome) na renderização do
+transcript; não muta os dados do voxtype.
 _Avoid_: participante, orador.
 
 **Diarization**:

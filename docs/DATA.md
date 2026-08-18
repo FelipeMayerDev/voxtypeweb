@@ -78,13 +78,15 @@ Timestamps here are ISO-8601 (db has unix seconds) — normalize both to datetim
 ## CLI surface
 
 ```
-voxtype meeting export <ID|latest> -f text|markdown|json [--timestamps --speakers --metadata]  # stdout
-voxtype meeting label  <ID|latest> <SPEAKER_ID> <LABEL>   # writes speaker_labels in index.db
+voxtype meeting export <ID|latest> -f markdown --timestamps --speakers  # on-screen transcript
+voxtype meeting export <ID|latest> -f text|markdown|json                # download
 ```
-Meetings are otherwise **view-only** (ADR 0002): no delete/start/stop. The one
-allowed mutation is `label` (a diarized-speaker annotation, `SPEAKER_XX`/number).
-Reads (list/show/live) NEVER shell out — read index.db + json directly, and NEVER
-write index.db or the json files by hand; mutations go through the CLI (ADR 0001).
+`export` (stdout, read-only) is the ONLY CLI call. The web is read-only over
+voxtype data: no delete/start/stop, and no `meeting label` — this build has no
+diarized `SPEAKER_NN` (speakers are channel-based `You`/`Remote`), so renaming a
+speaker is an **app-owned display alias** (`app/aliases.py`, stored in
+`SPEAKER_ALIASES_PATH`), applied when rendering the transcript. Reads (list/show)
+read `index.db` directly and NEVER write voxtype files.
 
 ## HTTP + template contract (both workers follow exactly)
 
@@ -101,14 +103,15 @@ entrypoint `app.main:app`.
 | `VOXTYPE_CONFIG_PATH` | `~/.config/voxtype/config.toml` |
 | `VOXTYPE_BIN` | `/usr/bin/voxtype` |
 | `VOXTYPE_STATE_DIR` | `$XDG_RUNTIME_DIR/voxtype` |
+| `VOXTYPEWEB_STATE_DIR` | `~/.local/state/voxtypeweb` (app state: `speaker-aliases.json`) |
 
 ### Routes
 
 | method | path | returns | notes |
 |---|---|---|---|
 | GET | `/` | `index.html` | ctx: `meetings: list[Meeting]`, `health: Health` |
-| GET | `/meetings/{id}` | `meeting.html` | ctx: `meeting: Meeting`, `health: Health`, `transcript_html: str`, `speakers: list[str]`, `labels: list[{speaker_num,label}]`, `label_error: str\|None` |
-| POST | `/meetings/{id}` | redirect (303) to detail | form: `speaker_id`, `label` → `voxtype meeting label`; on CLI error re-renders detail with `label_error` |
+| GET | `/meetings/{id}` | `meeting.html` | ctx: `meeting: Meeting`, `health: Health`, `transcript_html: str`, `speakers: list[str]`, `aliases: dict[str,str]` |
+| POST | `/meetings/{id}` | redirect (303) to detail | form: `speaker_id`, `label` → set/clear app-owned speaker alias (empty `label` clears) |
 | GET | `/meetings/{id}/transcript` | `_transcript.html` | HTMX poll target; ctx: `transcript_html: str` |
 | GET | `/meetings/{id}/export` | file download | query `format=text\|markdown\|json`; CLI export |
 | GET | `/config` | `config.html` | ctx: `content: str`, `error: str\|None`, `saved: bool` |
@@ -125,8 +128,8 @@ entrypoint `app.main:app`.
 
 - `base.html`: layout; `<head>` loads `/static/style.css` + `/static/htmx.min.js`; nav (Home `/`, Config `/config`); renders `_health.html` banner from `health`; `{% block content %}`.
 - `index.html` extends base: table of `meetings` — title (or "(untitled)"), started_at, duration, status badge, chunk_count, model, actions (view, export text/md/json links). Meetings are view-only: no delete.
-- `meeting.html` extends base: metadata header + `_transcript.html`, plus a **Speaker labels** panel — current `labels`, detected `speakers`, and a form (POST `/meetings/{id}`, fields `speaker_id`, `label`) to set a diarized-speaker label. If `meeting.status in ("active","paused")`, wrap transcript in a container with `hx-get="/meetings/{id}/transcript" hx-trigger="every 5s" hx-swap="innerHTML"`.
-- `_transcript.html`: renders `transcript_html|safe` (the transcript as rendered markdown) or a "No transcript yet" empty-state. The transcript is `voxtype meeting export -f markdown --timestamps --speakers` (speaker labels applied by voxtype) converted to HTML — NOT read from `transcript.json`, whose `storage_path` is host-absolute.
+- `meeting.html` extends base: metadata header + `_transcript.html`, plus a **Speaker names** panel — one rename form per detected speaker (POST `/meetings/{id}`, `speaker_id` hidden + `label`), prefilled from `aliases`; blank clears. If `meeting.status in ("active","paused")`, wrap transcript in a container with `hx-get="/meetings/{id}/transcript" hx-trigger="every 5s" hx-swap="innerHTML"`.
+- `_transcript.html`: renders `transcript_html|safe` (transcript as rendered markdown) or a "No transcript yet" empty-state. The transcript is `voxtype meeting export -f markdown --timestamps --speakers` converted to HTML, with `### <speaker_id>` headings rewritten via the app-owned aliases — NOT read from `transcript.json`.
 - `config.html` extends base: `<form method=post action="/config">` with big monospace `<textarea name="content">{{ content }}</textarea>` + Save; show `error` if invalid TOML, success if `saved`.
 - `_health.html`: banner from `health` — green if `ok`, shows daemon `state`; warn/red if binary missing.
 
@@ -151,7 +154,8 @@ entrypoint `app.main:app`.
   the voxtype CLI dereferences, so container paths must equal host paths):
   - `/usr/bin/voxtype:/usr/bin/voxtype:ro`
   - `/usr/lib/voxtype:/usr/lib/voxtype:ro`
-  - `${HOME}/.local/share/voxtype:${HOME}/.local/share/voxtype:rw` (rw: `voxtype meeting label` writes `speaker_labels`) + `VOXTYPE_DATA_DIR=${HOME}/.local/share/voxtype`, `XDG_DATA_HOME=${HOME}/.local/share`
+  - `${HOME}/.local/share/voxtype:${HOME}/.local/share/voxtype:ro` + `VOXTYPE_DATA_DIR=${HOME}/.local/share/voxtype`, `XDG_DATA_HOME=${HOME}/.local/share`
   - `${HOME}/.config/voxtype:${HOME}/.config/voxtype:rw` + `VOXTYPE_CONFIG_PATH=${HOME}/.config/voxtype/config.toml`, `XDG_CONFIG_HOME=${HOME}/.config`
   - `${XDG_RUNTIME_DIR}/voxtype:/run/voxtype:ro` + `VOXTYPE_STATE_DIR=/run/voxtype`
+  - `${HOME}/.local/state/voxtypeweb:${HOME}/.local/state/voxtypeweb:rw` (app state, **rw**) + `VOXTYPEWEB_STATE_DIR=${HOME}/.local/state/voxtypeweb` — must pre-exist owned by uid 1000
   - healthcheck hitting `/health`.

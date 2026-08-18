@@ -24,10 +24,6 @@ def export(meeting_id: str, fmt: str) -> bytes:
     return _run("meeting", "export", meeting_id, "-f", fmt).stdout
 
 
-def label(meeting_id: str, speaker_id: str, label: str) -> None:
-    _run("meeting", "label", meeting_id, speaker_id, label)
-
-
 def read_markdown(meeting_id: str) -> str:
     """Transcript body as markdown, via voxtype's own export (resolves data via XDG,
     so it works inside the container). Drops the redundant '# Meeting' / '## Transcript'

@@ -55,18 +55,6 @@ def get_meeting(meeting_id: str) -> Meeting | None:
     return _row_to_meeting(row) if row else None
 
 
-def get_speaker_labels(meeting_id: str) -> list[dict]:
-    """Current speaker_num -> label mappings for a meeting (index.db)."""
-    if not INDEX_DB.exists():
-        return []
-    with _connect() as con:
-        rows = con.execute(
-            "SELECT speaker_num, label FROM speaker_labels WHERE meeting_id = ? ORDER BY speaker_num",
-            (meeting_id,),
-        ).fetchall()
-    return [{"speaker_num": r["speaker_num"], "label": r["label"]} for r in rows]
-
-
 def get_speakers(meeting_id: str) -> list[str]:
     """Distinct speaker ids present in the transcript, to guide labeling. Reads
     transcript.json via storage_path (resolves now that data is mounted at the host

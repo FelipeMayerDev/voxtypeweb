@@ -1,9 +1,9 @@
-# Modelo de leitura híbrido: CLI para mutações, arquivos para leitura
+# Modelo de leitura híbrido: CLI para exportar, arquivos para ler
 
-O backend usa o **CLI do voxtype** para ações que mutam estado
-(`voxtype meeting export`, `label`, `delete`) e lê os **arquivos direto**
-(`index.db`, `metadata.json`, `transcript.json`) para listar, exibir e para o
-Live View.
+O backend lê os **arquivos direto** (`index.db`, `transcript.json`) para listar
+e exibir, e usa o **CLI do voxtype** para renderizar o transcript na tela
+(`voxtype meeting export -f markdown`, que aplica timestamps/speakers). A web não
+muta dados do voxtype.
 
 ## Contexto
 
@@ -14,9 +14,13 @@ ordenável e atualização a cada 5s para o Live View — coisas impossíveis vi
 
 ## Decisão
 
-- **Leitura** (list / show / live): ler `index.db` (SQLite) + `transcript.json`.
-- **Mutação** (export / label / delete): invocar o binário voxtype, que é o
-  dono do formato e mantém `index.db` e os arquivos coerentes.
+- **Leitura** (list / show): ler `index.db` (SQLite) direto.
+- **Transcript na tela**: `voxtype meeting export -f markdown --timestamps
+  --speakers`, renderizado para HTML. O CLI é o dono do formato; não relemos
+  `transcript.json` para montar o texto (o `storage_path` é absoluto do host).
+- **Renomear speaker**: alias de exibição próprio da web (ver ADR 0002 e
+  CONTEXT), pois o `voxtype meeting label` só cobre `SPEAKER_NN` diarizado, que
+  este build não gera (speakers por canal: `You`/`Remote`).
 
-Nunca escrever no `index.db` ou nos arquivos de meeting direto — mutação sempre
-via CLI, para não divergir do que o voxtype espera.
+Nunca escrever no `index.db` nem nos arquivos de meeting — a web é read-only
+sobre os dados do voxtype.

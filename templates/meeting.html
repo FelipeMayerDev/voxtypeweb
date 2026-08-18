@@ -36,21 +36,19 @@
 </section>
 
 <section class="label-panel" aria-labelledby="labels-heading">
-  <h2 id="labels-heading">Speaker labels</h2>
-  {% if labels %}
-  <ul class="label-list">
-    {% for l in labels %}<li><code>SPEAKER_{{ "%02d"|format(l.speaker_num) }}</code> → <strong>{{ l.label }}</strong></li>{% endfor %}
-  </ul>
-  {% endif %}
+  <h2 id="labels-heading">Speaker names</h2>
   {% if speakers %}
-  <p class="hint">Speakers in this transcript: {% for s in speakers %}<code>{{ s }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
-  {% endif %}
-  {% if label_error %}<p class="form-error" role="alert">{{ label_error }}</p>{% endif %}
+  <p class="hint">Rename how each speaker appears in the transcript above. Leave blank to reset.</p>
+  {% for s in speakers %}
   <form class="label-form" method="post" action="/meetings/{{ meeting.id }}">
-    <label>Speaker <input name="speaker_id" required placeholder="SPEAKER_00 or 0"></label>
-    <label>Label <input name="label" required placeholder="Alice"></label>
-    <button type="submit">Save label</button>
+    <input type="hidden" name="speaker_id" value="{{ s }}">
+    <label>Speaker <input value="{{ s }}" disabled></label>
+    <label>Name <input name="label" value="{{ aliases.get(s, '') }}" placeholder="{{ s }}"></label>
+    <button type="submit">Save</button>
   </form>
-  <p class="hint">Voxtype only labels diarized speakers (<code>SPEAKER_00</code> or a number); names like “You”/“Remote” aren’t labelable.</p>
+  {% endfor %}
+  {% else %}
+  <p class="empty-state">No speakers detected in this transcript.</p>
+  {% endif %}
 </section>
 {% endblock %}

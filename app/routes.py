@@ -4,13 +4,13 @@ from fastapi.templating import Jinja2Templates
 
 import markdown as _md
 
+from app.aliases import apply_aliases, get_aliases, set_alias
 from app.cli import VoxtypeCliError
 from app.cli import export as cli_export
-from app.cli import label as cli_label
 from app.cli import read_markdown as cli_read_markdown
 from app.config_service import ConfigError, read_config, write_config
 from app.health import get_health
-from app.read_model import get_meeting, get_speaker_labels, get_speakers, list_meetings
+from app.read_model import get_meeting, get_speakers, list_meetings
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -35,7 +35,9 @@ def _transcript_html(meeting_id: str) -> str:
         body = cli_read_markdown(meeting_id)
     except VoxtypeCliError:
         return ""
-    return _md.markdown(body) if body else ""
+    if not body:
+        return ""
+    return _md.markdown(apply_aliases(body, get_aliases(meeting_id)))
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -45,7 +47,7 @@ def index(request: Request):
     )
 
 
-def _render_meeting(request: Request, meeting_id: str, label_error: str | None = None):
+def _render_meeting(request: Request, meeting_id: str):
     meeting = _get_meeting_or_404(meeting_id)
     return templates.TemplateResponse(
         request,
@@ -55,8 +57,7 @@ def _render_meeting(request: Request, meeting_id: str, label_error: str | None =
             "health": get_health(),
             "transcript_html": _transcript_html(meeting_id),
             "speakers": get_speakers(meeting_id),
-            "labels": get_speaker_labels(meeting_id),
-            "label_error": label_error,
+            "aliases": get_aliases(meeting_id),
         },
     )
 
@@ -67,12 +68,9 @@ def meeting_detail(request: Request, meeting_id: str):
 
 
 @router.post("/meetings/{meeting_id}", response_class=HTMLResponse)
-def meeting_label(request: Request, meeting_id: str, speaker_id: str = Form(...), label: str = Form(...)):
+def meeting_set_alias(request: Request, meeting_id: str, speaker_id: str = Form(...), label: str = Form("")):
     _get_meeting_or_404(meeting_id)
-    try:
-        cli_label(meeting_id, speaker_id.strip(), label.strip())
-    except VoxtypeCliError as exc:
-        return _render_meeting(request, meeting_id, label_error=str(exc))
+    set_alias(meeting_id, speaker_id.strip(), label.strip())
     return RedirectResponse(url=f"/meetings/{meeting_id}", status_code=303)
 
 
