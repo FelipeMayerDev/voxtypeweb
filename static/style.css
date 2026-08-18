@@ -70,13 +70,11 @@ tbody tr:hover { background: #faf7ef; }
 .live-indicator { margin: 0; color: var(--ok); font-size: .85rem; font-weight: 750; }
 .live-indicator::before { content: ""; display: inline-block; width: .55rem; height: .55rem; margin-right: .4rem; border-radius: 50%; background: currentColor; }
 
-.transcript { border-top: 2px solid var(--ink); }
-.segment { display: grid; grid-template-columns: 4.5rem 9rem 7rem minmax(0, 1fr); gap: 1rem; align-items: start; margin: 0; padding: 1rem .25rem; border-bottom: 1px solid var(--line); }
-.segment-time { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85rem; }
-.segment-speaker { overflow-wrap: anywhere; font-weight: 750; }
-.segment p { max-width: 70ch; margin: 0; white-space: pre-wrap; }
-.source { color: #535752; background: #ecebe6; font-size: .65rem; text-transform: uppercase; }
-.source-loopback { color: #31536b; background: #e2edf4; }
+.transcript { border-top: 2px solid var(--ink); padding-top: 1rem; max-width: 72ch; }
+.transcript h3 { margin: 1.5rem 0 .5rem; font-size: 1rem; }
+.transcript h3:first-child { margin-top: 0; }
+.transcript p { margin: 0 0 .75rem; line-height: 1.6; overflow-wrap: anywhere; }
+.transcript em { margin-right: .4rem; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem; font-style: normal; }
 .empty-state { padding: 2rem; border: 1px dashed #aaa69b; color: var(--muted); background: var(--surface); text-align: center; }
 
 label { display: grid; gap: .35rem; font-weight: 700; }
@@ -96,9 +94,6 @@ button:hover { background: #383832; }
 @media (max-width: 52rem) {
   .metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metadata div, .metadata div:last-child { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .segment { grid-template-columns: 4rem 1fr; gap: .5rem 1rem; }
-  .segment .source { grid-column: 1; }
-  .segment p { grid-column: 2; }
 }
 
 @media (max-width: 34rem) {
@@ -106,8 +101,6 @@ button:hover { background: #383832; }
   main.container { padding-top: 1.75rem; }
   .page-heading, .meeting-header, .section-heading { align-items: flex-start; flex-direction: column; }
   .metadata { grid-template-columns: 1fr; }
-  .segment { grid-template-columns: 3.75rem 1fr; }
-  .segment-speaker { align-self: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

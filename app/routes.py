@@ -2,8 +2,11 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
+import markdown as _md
+
 from app.cli import VoxtypeCliError
 from app.cli import export as cli_export
+from app.cli import read_markdown as cli_read_markdown
 from app.config_service import ConfigError, read_config, write_config
 from app.health import get_health
 from app.read_model import get_meeting, list_meetings
@@ -26,6 +29,14 @@ def _get_meeting_or_404(meeting_id: str):
     return meeting
 
 
+def _transcript_html(meeting_id: str) -> str:
+    try:
+        body = cli_read_markdown(meeting_id)
+    except VoxtypeCliError:
+        return ""
+    return _md.markdown(body) if body else ""
+
+
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request):
     return templates.TemplateResponse(
@@ -37,14 +48,22 @@ def index(request: Request):
 def meeting_detail(request: Request, meeting_id: str):
     meeting = _get_meeting_or_404(meeting_id)
     return templates.TemplateResponse(
-        request, "meeting.html", {"meeting": meeting, "health": get_health()}
+        request,
+        "meeting.html",
+        {
+            "meeting": meeting,
+            "health": get_health(),
+            "transcript_html": _transcript_html(meeting_id),
+        },
     )
 
 
 @router.get("/meetings/{meeting_id}/transcript", response_class=HTMLResponse)
 def meeting_transcript(request: Request, meeting_id: str):
-    meeting = _get_meeting_or_404(meeting_id)
-    return templates.TemplateResponse(request, "_transcript.html", {"meeting": meeting})
+    _get_meeting_or_404(meeting_id)
+    return templates.TemplateResponse(
+        request, "_transcript.html", {"transcript_html": _transcript_html(meeting_id)}
+    )
 
 
 @router.get("/meetings/{meeting_id}/export")

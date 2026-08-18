@@ -106,8 +106,8 @@ entrypoint `app.main:app`.
 | method | path | returns | notes |
 |---|---|---|---|
 | GET | `/` | `index.html` | ctx: `meetings: list[Meeting]`, `health: Health` |
-| GET | `/meetings/{id}` | `meeting.html` | ctx: `meeting: MeetingDetail`, `health: Health` |
-| GET | `/meetings/{id}/transcript` | `_transcript.html` | HTMX poll target; ctx: `meeting: MeetingDetail` |
+| GET | `/meetings/{id}` | `meeting.html` | ctx: `meeting: Meeting`, `health: Health`, `transcript_html: str` |
+| GET | `/meetings/{id}/transcript` | `_transcript.html` | HTMX poll target; ctx: `transcript_html: str` |
 | GET | `/meetings/{id}/export` | file download | query `format=text\|markdown\|json`; CLI export |
 | GET | `/config` | `config.html` | ctx: `content: str`, `error: str\|None`, `saved: bool` |
 | POST | `/config` | `config.html` | form: `content`; validate `tomlkit.parse`, write raw text (comments preserved) |
@@ -115,10 +115,7 @@ entrypoint `app.main:app`.
 
 ### Pydantic models (`app/models.py`)
 
-- `Segment`: `id:int, start_ms:int, end_ms:int, text:str, source:str, speaker_id:str|None=None, confidence:float|None=None, chunk_id:int|None=None`
-- `SpeakerLabel`: `meeting_id:str, speaker_num:int, label:str`
 - `Meeting`: `id:str, title:str|None, started_at:datetime, ended_at:datetime|None, duration_secs:int|None, status:str, chunk_count:int, storage_path:str|None, audio_retained:bool, model:str|None`
-- `MeetingDetail`: all `Meeting` fields + `segments:list[Segment]`, `labels:list[SpeakerLabel]`, `total_chunks:int`
 - `DaemonState`: `state:str, meeting_state:str|None, pid:int|None, running:bool`
 - `Health`: `ok:bool, binary_present:bool, binary_path:str, daemon:DaemonState`
 
@@ -126,8 +123,8 @@ entrypoint `app.main:app`.
 
 - `base.html`: layout; `<head>` loads `/static/style.css` + `/static/htmx.min.js`; nav (Home `/`, Config `/config`); renders `_health.html` banner from `health`; `{% block content %}`.
 - `index.html` extends base: table of `meetings` — title (or "(untitled)"), started_at, duration, status badge, chunk_count, model, actions (view, export text/md/json links). Meetings are view-only: no delete.
-- `meeting.html` extends base: metadata header + `_transcript.html`. If `meeting.status in ("active","paused")`, wrap transcript in a container with `hx-get="/meetings/{id}/transcript" hx-trigger="every 5s" hx-swap="innerHTML"`. Speaker labels from `meeting.labels` are shown in the transcript, but are not editable on the web (ADR 0002).
-- `_transcript.html`: renders `meeting.segments` — timestamp `mm:ss` from `start_ms`, speaker (label for `speaker_id` if present else raw `speaker_id`), source icon (mic/loopback), text.
+- `meeting.html` extends base: metadata header + `_transcript.html`. If `meeting.status in ("active","paused")`, wrap transcript in a container with `hx-get="/meetings/{id}/transcript" hx-trigger="every 5s" hx-swap="innerHTML"`.
+- `_transcript.html`: renders `transcript_html|safe` (the transcript as rendered markdown) or a "No transcript yet" empty-state. The transcript is `voxtype meeting export -f markdown --timestamps --speakers` (speaker labels applied by voxtype) converted to HTML — NOT read from `transcript.json`, whose `storage_path` is host-absolute.
 - `config.html` extends base: `<form method=post action="/config">` with big monospace `<textarea name="content">{{ content }}</textarea>` + Save; show `error` if invalid TOML, success if `saved`.
 - `_health.html`: banner from `health` — green if `ok`, shows daemon `state`; warn/red if binary missing.
 
@@ -138,19 +135,21 @@ entrypoint `app.main:app`.
 
 ### Deps
 
-`fastapi`, `uvicorn[standard]`, `jinja2`, `tomlkit`, `python-multipart` (form posts). `sqlite3` is stdlib.
+`fastapi`, `uvicorn[standard]`, `jinja2`, `tomlkit`, `python-multipart` (form posts), `markdown` (transcript rendering). `sqlite3` is stdlib.
 
 ## Docker (ADR 0002)
 
-- `Dockerfile`: `FROM fedora:44`; install python3 + pip; create user uid 1000; copy `app/`,
+- `Dockerfile`: `FROM fedora:44`; install `python3 python3-pip` + the libs the mounted binary
+  links (`alsa-lib` = libasound.so.2, `libstdc++`); create user uid 1000; copy `app/`,
   `templates/`, `static/`; `pip install` deps; `USER 1000`; `EXPOSE 8000`;
   `CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]`.
   Fedora 44 base is REQUIRED (host glibc 2.43; Debian/Ubuntu glibc too old for the mounted binary).
 - `docker-compose.yml`: service runs as `user: "1000:1000"`, `ports: "8000:8000"`, and bind-mounts
-  (map to the container paths the env vars point at):
+  data/config at their **original host paths** (index.db stores host-absolute `storage_path`s that
+  the voxtype CLI dereferences, so container paths must equal host paths):
   - `/usr/bin/voxtype:/usr/bin/voxtype:ro`
   - `/usr/lib/voxtype:/usr/lib/voxtype:ro`
-  - `${HOME}/.local/share/voxtype:/data/voxtype:ro`  + `VOXTYPE_DATA_DIR=/data/voxtype`
-  - `${HOME}/.config/voxtype:/config/voxtype:rw`      + `VOXTYPE_CONFIG_PATH=/config/voxtype/config.toml`
-  - `${XDG_RUNTIME_DIR}/voxtype:/run/voxtype:ro`       + `VOXTYPE_STATE_DIR=/run/voxtype`
+  - `${HOME}/.local/share/voxtype:${HOME}/.local/share/voxtype:ro` + `VOXTYPE_DATA_DIR=${HOME}/.local/share/voxtype`, `XDG_DATA_HOME=${HOME}/.local/share`
+  - `${HOME}/.config/voxtype:${HOME}/.config/voxtype:rw` + `VOXTYPE_CONFIG_PATH=${HOME}/.config/voxtype/config.toml`, `XDG_CONFIG_HOME=${HOME}/.config`
+  - `${XDG_RUNTIME_DIR}/voxtype:/run/voxtype:ro` + `VOXTYPE_STATE_DIR=/run/voxtype`
   - healthcheck hitting `/health`.

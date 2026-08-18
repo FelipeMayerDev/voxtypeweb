@@ -3,23 +3,6 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-class Segment(BaseModel):
-    id: int
-    start_ms: int
-    end_ms: int
-    text: str
-    source: str
-    speaker_id: str | None = None
-    confidence: float | None = None
-    chunk_id: int | None = None
-
-
-class SpeakerLabel(BaseModel):
-    meeting_id: str
-    speaker_num: int
-    label: str
-
-
 class Meeting(BaseModel):
     id: str
     title: str | None
@@ -31,12 +14,6 @@ class Meeting(BaseModel):
     storage_path: str | None
     audio_retained: bool
     model: str | None
-
-
-class MeetingDetail(Meeting):
-    segments: list[Segment]
-    labels: list[SpeakerLabel]
-    total_chunks: int
 
 
 class DaemonState(BaseModel):

@@ -1,25 +1,5 @@
-{% if meeting.segments %}
-<div class="transcript">
-  {% for segment in meeting.segments %}
-  {% set speaker = namespace(name=segment.speaker_id, number=none) %}
-  {% if segment.speaker_id %}
-    {% if segment.speaker_id.isdigit() %}
-      {% set speaker.number = segment.speaker_id|int %}
-    {% elif segment.speaker_id.startswith("SPEAKER_") and segment.speaker_id[8:].isdigit() %}
-      {% set speaker.number = segment.speaker_id[8:]|int %}
-    {% endif %}
-    {% if speaker.number is not none %}
-      {% for item in meeting.labels %}{% if item.speaker_num == speaker.number %}{% set speaker.name = item.label %}{% endif %}{% endfor %}
-    {% endif %}
-  {% endif %}
-  <article class="segment">
-    <time class="segment-time" datetime="PT{{ segment.start_ms // 1000 }}S">{{ "%02d:%02d"|format(segment.start_ms // 60000, (segment.start_ms // 1000) % 60) }}</time>
-    <span class="segment-speaker">{{ speaker.name or "Unknown speaker" }}</span>
-    <span class="source source-{{ segment.source }}">{% if segment.source == "microphone" %}Microphone{% else %}Loopback{% endif %}</span>
-    <p>{{ segment.text }}</p>
-  </article>
-  {% endfor %}
-</div>
+{% if transcript_html %}
+<div class="transcript">{{ transcript_html|safe }}</div>
 {% else %}
-<p class="empty-state">No Segments yet.</p>
+<p class="empty-state">No transcript yet.</p>
 {% endif %}
